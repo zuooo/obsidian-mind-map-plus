@@ -1,3 +1,5 @@
+import { Notice } from "obsidian";
+
 export function createSVG(containerEl: HTMLElement, lineHeight: string): SVGElement {
     removeExistingSVG();
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as unknown as SVGElement;
@@ -25,6 +27,6 @@ export function removeExistingSVG() {
 export function getComputedCss(el: HTMLElement) {
     const computed = getComputedStyle(el);
     const color = computed.getPropertyValue('--text-normal');
-    const font = `1em ${computed.getPropertyValue('--default-font')}`;
+    const font = `1em ${computed.getPropertyValue('font-family')}`;
     return { color, font };
 }

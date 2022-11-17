@@ -1,13 +1,12 @@
 import { EventRef, ItemView, Menu, Vault, Workspace, WorkspaceLeaf } from 'obsidian';
-import { transform } from 'markmap-lib';
+import { Transformer, builtInPlugins } from 'markmap-lib';
 import { Markmap } from 'markmap-view';
-import { INode } from 'markmap-common';
+import { INode, IMarkmapOptions } from 'markmap-common';
 import { FRONT_MATTER_REGEX, MD_VIEW_TYPE, MM_VIEW_TYPE } from './constants';
 import ObsidianMarkmap from './obsidian-markmap-plugin';
 import { createSVG, getComputedCss, removeExistingSVG } from './markmap-svg';
-import { copyImageToClipboard } from './copy-image';
+import { exportImage } from './export-image';
 import { MindMapSettings } from './settings';
-import { IMarkmapOptions } from 'markmap-view/types/types';
 
 export default class MindmapView extends ItemView {
     filePath: string;
@@ -24,6 +23,8 @@ export default class MindmapView extends ItemView {
     isLeafPinned: boolean;
     pinAction: HTMLElement;
     settings: MindMapSettings;
+    rootCache: INode;
+    transformer: Transformer;
 
     getViewType(): string {
         return MM_VIEW_TYPE;
@@ -48,9 +49,35 @@ export default class MindmapView extends ItemView {
         .addSeparator()
         .addItem((item) => 
             item
-            .setIcon('image-file')
-            .setTitle('Copy screenshot')
-            .onClick(() => copyImageToClipboard(this.svg))  
+            .setIcon('palette')
+            .setTitle(this.settings.singleColor ? 'Multi color': 'Single color')
+            .onClick(() => this.switchColorMode())
+        )
+        .addSeparator()
+        .addItem((item) => 
+            item
+            .setIcon('copy')
+            .setTitle('Copy image')
+            .onClick(() => exportImage(this.svg, this, 0))  
+        )
+        .addItem((item) => 
+            item
+            .setIcon('copy')
+            .setTitle('Copy SVG code')
+            .onClick(() => exportImage(this.svg, this, 1))  
+        )
+        .addSeparator()
+        .addItem((item) => 
+            item
+            .setIcon('download')
+            .setTitle('Save SVG')
+            .onClick(() => exportImage(this.svg, this, 2))  
+        )
+        .addItem((item) => 
+            item
+            .setIcon('external-link')
+            .setTitle('Save and open')
+            .onClick(() => exportImage(this.svg, this, 3))  
         );
         menu.showAtPosition({x: 0, y: 0});
     }
@@ -62,13 +89,14 @@ export default class MindmapView extends ItemView {
         this.fileName = initialFileInfo.basename; 
         this.vault = this.app.vault;
         this.workspace = this.app.workspace;
+        this.transformer = new Transformer([...builtInPlugins])
     }
 
     async onOpen() {
         this.obsMarkmap = new ObsidianMarkmap(this.vault);
         this.registerActiveLeafUpdate();
+        this.workspace.onLayoutReady(() => this.update());
         this.listeners = [
-            this.workspace.on('layout-ready', () => this.update()),
             this.workspace.on('resize', () => this.update()),
             this.workspace.on('css-change', () => this.update()),
             this.leaf.on('group-change', (group) => this.updateLinkedLeaf(group, this))
@@ -124,6 +152,7 @@ export default class MindmapView extends ItemView {
                 removeExistingSVG();
             } else {
                 const { root, features } = await this.transformMarkdown();
+                this.rootCache = root;
                 this.displayEmpty(false);
                 this.svg = createSVG(this.containerEl, this.settings.lineHeight);
                 this.renderMarkmap(root, this.svg);
@@ -169,22 +198,23 @@ export default class MindmapView extends ItemView {
     }
     
     async transformMarkdown() {
-        const { root, features } = transform(this.currentMd);
+        const { root, features } = this.transformer.transform(this.currentMd);
         this.obsMarkmap.updateInternalLinks(root);
         return { root, features };
     }
     
     async renderMarkmap(root: INode, svg: SVGElement) {
         const { font } = getComputedCss(this.containerEl);
-        const options: IMarkmapOptions = {
+        const options: Partial<IMarkmapOptions> = {
             autoFit: false,
             duration: 10,
-            nodeFont: font,
+            style: (id) => `${id} * {font: ${font}}`,
             nodeMinHeight: this.settings.nodeMinHeight ?? 16,
             spacingVertical: this.settings.spacingVertical ?? 5,
             spacingHorizontal: this.settings.spacingHorizontal ?? 80,
             paddingX: this.settings.paddingX ?? 8
           };
+          if (this.settings.singleColor) options.color = (node)=>this.settings.singleColorCode??'#c45454';
           try {
             const markmapSVG = Markmap.create(svg, options, root);
           } catch (error) {
@@ -196,11 +226,18 @@ export default class MindmapView extends ItemView {
         if(this.emptyDiv === undefined) {
             const div = document.createElement('div')
             div.className = 'pane-empty';
-            div.innerText = 'No content found';
+            div.innerText = 'No content found. Tap on a note to generate mind map.';
             removeExistingSVG();
             this.containerEl.children[1].appendChild(div);
             this.emptyDiv = div;
         } 
         this.emptyDiv.toggle(display);
+    }
+
+    switchColorMode() {
+        this.settings.singleColor=!this.settings.singleColor??true;
+        this.displayEmpty(false);
+        this.svg = createSVG(this.containerEl, this.settings.lineHeight);
+        this.renderMarkmap(this.rootCache, this.svg);
     }
 }

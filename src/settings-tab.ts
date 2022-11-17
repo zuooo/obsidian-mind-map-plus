@@ -82,7 +82,7 @@ export class MindMapSettingsTab extends PluginSettingTab {
                     }));
 
         new Setting(containerEl)
-            .setName('Horizontal padding')
+            .setName('Horizontal Padding')
             .setDesc('Leading space before the content of mind map nodes')
             .addText(text =>
                 text
@@ -92,5 +92,32 @@ export class MindMapSettingsTab extends PluginSettingTab {
                         this.plugin.settings.paddingX = Number.parseInt(value);
                         this.plugin.saveData(this.plugin.settings);
                     }));
+
+
+        new Setting(containerEl)
+        .setName("Single Color Mind Map")
+        .setDesc("Use the same color for all lines in mind map")
+        .addToggle((toggleComponent) =>
+            toggleComponent
+            .setValue(this.plugin.settings.singleColor)
+            .onChange((value: boolean) => {
+                this.plugin.settings.singleColor = value;
+                this.plugin.saveData(this.plugin.settings);
+                this.app.workspace.trigger("css-change");
+            })
+        )
+
+        new Setting(containerEl)
+            .setName("Single Color Mind Map: Line Color")
+            .setDesc("Color used when single color is used for mind map")
+            .addColorPicker((colorComponent) =>
+                colorComponent
+                .setValue(this.plugin.settings.singleColorCode??'#c45454')
+                .onChange((value: string) => {
+                    this.plugin.settings.singleColorCode = value;
+                    this.plugin.saveData(this.plugin.settings);
+                    this.app.workspace.trigger("css-change");
+                })
+            );
     }
 }
