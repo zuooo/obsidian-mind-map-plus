@@ -5,9 +5,9 @@
 
 This repository contains a plugin for [Obsidian](https://obsidian.md/) for viewing Markdown notes as Mind Maps using [Markmap](https://markmap.js.org/). It is derived from [James Lynch's plugin](https://github.com/lynchjames/obsidian-mind-map) with a few noteworthy upgrades.
 
-- ==Copy and save Mind Map as SVG==
-- ==Fixed highlights not displayed==
-- ==Option for single color Mind Map==
+👉 Copy and save Mind Map as SVG
+👉 Fixed highlights not displayed
+👉 Option for single color Mind Map
     
 ## Features
 
